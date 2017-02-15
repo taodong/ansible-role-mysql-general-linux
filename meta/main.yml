@@ -1,0 +1,16 @@
+galaxy_info:
+  author: Tao Dong
+  description: MySQL community server for Amazon Linux or General Linux
+  license: MIT
+
+  min_ansible_version: 2.2
+
+  platforms:
+  - name: Amazon
+    versions:
+    - 2016.03
+    - 2016.09
+
+  galaxy_tags:
+    - database
+    - MySQL

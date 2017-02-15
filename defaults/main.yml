@@ -1,0 +1,13 @@
+---
+# Folder to save MySQL binary installer
+mysql_bin_dir: /home/ec2-user
+# MySQL binary installer file name, should be a general Linus installer on MySQL repository
+mysql_bin_file: mysql-5.7.17-linux-glibc2.5-x86_64.tar.gz
+# MySQL install directory
+mysql_install_dir: /usr/local
+# MySQL home directory name
+mysql_home_dir: "{{ mysql_bin_file | regex_replace('\\.tar|\\.gz', '')}}"
+# MySQL admin user
+mysql_admin_user: root
+# Directory to save installation result which includes temporary root passowrd
+install_output_dir: /home/ec2-user 

@@ -1,0 +1,99 @@
+---
+- name: Verify libaio is installed
+  yum:
+    name: libaio.x86_64
+    state: present
+
+- name: Verify Mysql binary available
+  stat:
+    path: "{{ mysql_bin_dir }}/{{ mysql_bin_file }}"
+  register: bin_mysql
+
+- name: Download Mysql binary
+  get_url:
+    url: "http://dev.mysql.com/get/{{ mysql_bin_file }}"
+    dest: "{{ mysql_bin_dir }}"
+  when: not bin_mysql.stat.exists
+
+- name:  Verify group mysql
+  group:
+    name: mysql
+    state: present
+  register: g_mysql
+
+- debug:
+    msg: "group mysql created"
+  when: g_mysql | changed
+
+- name: Verify user mysql
+  user:
+    name: mysql
+    system: yes
+    group: mysql
+    shell: /bin/false
+  register: u_mysql
+
+- debug:
+    msg: "user mysql created"
+  when: u_mysql | changed
+
+- name: "Check if mysql {{ mysql_install_dir }} already installed"
+  stat:
+    path: "{{ mysql_install_dir }}/mysql"
+  register: sl_mysql
+
+- name: "Unzip Mysql binary into {{ mysql_install_dir }}"
+  unarchive:
+    src: "{{ mysql_bin_dir }}/{{ mysql_bin_file }}"
+    dest: "{{ mysql_install_dir }}"
+    remote_src: true
+  when: not sl_mysql.stat.exists
+
+- name: "Create softlink to current version {{ mysql_home_dir }}"
+  file:
+    src: "{{ mysql_install_dir }}/{{ mysql_home_dir }}"
+    dest: "{{ mysql_install_dir }}/mysql"
+    state: link
+  when: not sl_mysql.stat.exists
+
+- name: Initialize Mysqld
+  command: "{{ mysql_install_dir }}/mysql/bin/mysqld --initialize --user=mysql --explicit_defaults_for_timestamp=true"
+  register: rs_mysqld
+  when: not sl_mysql.stat.exists
+
+- name: "Save std of mysqld into {{ install_output_dir }}/db_rs.txt"
+  copy:
+    content: "{{ rs_mysqld.stderr }}"
+    dest: "{{ install_output_dir }}/db_rs.txt"
+  when: not sl_mysql.stat.exists
+
+- name: Initialize ssl_rsa
+  command: "{{ mysql_install_dir }}/mysql/bin/mysql_ssl_rsa_setup"
+  when: not sl_mysql.stat.exists
+
+- name: Copy Mysql service file
+  copy:
+    src: "{{ mysql_install_dir }}/mysql/support-files/mysql.server"
+    dest: "/etc/init.d/mysql.server"
+    mode: 0755
+    remote_src: true
+
+- name: Add Mysql bin folder into path
+  lineinfile:
+    dest: /etc/profile # change to path after Ansible 2.3
+    state: present
+    line: 'export PATH=$PATH:/usr/local/mysql/bin'
+    insertafter: EOF
+  register: p_change
+
+- name: Reload environment setting
+  shell: "source /etc/profile"
+  when: p_change | changed
+
+- name: Start Mysql server
+  service:
+    name: mysql.server
+    state: started
+
+- debug:
+    msg: "Please find root password inside {{ install_output_dir }}/db_rs.txt"
